@@ -13,16 +13,19 @@ function  x_optimal = MVO(mu, Q, targetRet)
     % *************** WRITE YOUR CODE HERE ***************
     %---------------------------------------------------------------------
     
-    A = [];
-    Aeq = [-1*mu;ones(1,n)];
+    A = [-1*mu;];
+    Aeq = [ones(1,n)];];
     
-    b = [];
-    beq = [-1*targetRet;1];
-    
-    
-    [x_optimal, val] = quadprog(Q, [], A, b, Aeq, beq, [], []);
+    b = [-1*targetRet;];
+    beq = [1];
     
     
+    
+    
+    
+    
+    
+    % x_optimal = 
     
     %----------------------------------------------------------------------
     

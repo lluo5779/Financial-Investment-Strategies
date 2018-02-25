@@ -18,7 +18,7 @@ function  x_optimal = MVO_card(mu, Q, targetRet, card)
     names = num2str([1:1:n]);
 
     model.Q = sparse([Q zeros(n,n); zeros(n,2*n)]);
-    model.A = sparse([-1*mu, zeros(1,n); 
+    model.A = sparse([-1*mu', zeros(1,n); 
         ones(1,n), zeros(1,n); 
         zeros(1,n), ones(1,n)]);
 
@@ -31,7 +31,7 @@ function  x_optimal = MVO_card(mu, Q, targetRet, card)
 
     model.vtype = [repmat('C', 1, n) repmat('B', 1, n);];
 
-    gurobi_write(model, 'qp.lp'); % mip.lp
+    %gurobi_write(model, 'qp.lp'); % mip.lp
 
     results = gurobi(model)
 

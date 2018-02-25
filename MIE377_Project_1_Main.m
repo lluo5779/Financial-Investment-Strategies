@@ -8,8 +8,8 @@
 %
 % Use this template to write your program
 %
-% Student Name:
-% Student ID:
+% Student Name: Yiqing (Louis) Luo
+% Student ID:   1002449059
 
 clc
 clear all
@@ -21,11 +21,16 @@ format long
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
 % Load the stock weekly prices and factors weekly returns
-adjClose = readtable('Project1_Data_adjClose.csv', 'ReadRowNames', true);
-adjClose.Properties.RowNames = cellstr(datetime(adjClose.Properties.RowNames));
+adjClose = readtable('Project1_Data_adjClose.csv');%, 'ReadRowNames', true);
+adjClose.Properties.RowNames = cellstr(datetime(adjClose.Date));
+%adjClose.Properties.RowNames = datetime(cellstr(table2array(adjClose(:,1)))); %cellstr(datetime(adjClose.Properties.RowNames));
+size_adjClose = size(adjClose);
+adjClose = adjClose(:,2:size_adjClose(2));
 
-factorRet = readtable('Project1_Data_FF_factors.csv', 'ReadRowNames', true);
-factorRet.Properties.RowNames = cellstr(datetime(factorRet.Properties.RowNames));
+factorRet = readtable('Project1_Data_FF_factors.csv'); %, 'ReadRowNames', true);
+factorRet.Properties.RowNames = cellstr(datetime(factorRet.Date));
+size_factorRet = size(factorRet);
+factorRet = factorRet(:,2:size_factorRet(2));
 
 riskFree = factorRet(:,4);
 factorRet = factorRet(:,1:3);
@@ -60,7 +65,7 @@ calEnd   = calStart + calmonths(12) - days(1);
 % Start of out-of-sample test period 
 testStart = datetime('2013-01-01');
 testEnd   = testStart + calmonths(6) - days(1);
-
+       
 % Number of investment periods (each investment period is 6 months long)
 NoPeriods = 6;
 
@@ -79,7 +84,17 @@ card = 12;
 % *************** WRITE YOUR CODE HERE ***************
 %--------------------------------------------------------------------------
 
+% Basic visualization of return over initial training period
+NoShares{1} = mktNoShares;
+NoShares{2} = mktNoShares;
+NoShares{3} = mktNoShares;
+
+[NoTotalDates, NoAssets] = size(adjClose);
 % Insert your B-L parameters (have at least 6 different views):
+
+tau = 0.005;
+
+
 
 % tau   = 
 % P     = 
@@ -99,6 +114,10 @@ card = 12;
 
 % Initiate counter for the number of observations per investment period
 toDay = 0;
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CODE CHANGED %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+NoMethods = 1;
+currentVal = ones(NoPeriods, 20);
 
 for t = 1 : NoPeriods
     
@@ -120,11 +139,14 @@ for t = 1 : NoPeriods
         
     else
         for i = 1 : NoMethods
-            
-            currentVal(t,i) = currentPrices .* NoShares{i};
+            %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CODE CHANGED %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+            %currentVal(t,i) = currentPrices .* NoShares{i};
+            currentVal(t,:) = currentPrices .* NoShares{i};
             
         end
     end
+
+    
     
     % Update counter for the number of observations per investment period
     fromDay = toDay + 1;
@@ -137,6 +159,10 @@ for t = 1 : NoPeriods
     % Fama-French factor model. You may find these values as you prefer,
     % the code given below is just an example. 
     
+    % n = 20 assets
+    % m = 3
+    % for each asset, have a F-F model representation
+    
     % A =           % n x 1 vector of alphas
     % V =           % m x n matrix of betas
     % 
@@ -148,7 +174,26 @@ for t = 1 : NoPeriods
 
     % mu =          % n x 1 vector of asset exp. returns
     % Q  =          % n x n asset covariance matrix
-
+    
+    
+    
+    %Coefficients of Regression
+    X = [ones(size(periodFactRet,1),1) periodFactRet];
+    B = (X'*X)\(X'*periodReturns); %inv(X'*X)*X'*periodReturns
+    A = B(1,:)'; %[b0; b0; b0;...]
+    V = B(2:size(B,1),:)'; %[b1 b2 b3; b1 b2 b3; ...]
+    
+    f_bar = mean(periodFactRet)'; % [f_bar1; f_bar2; f_bar3]
+    F = cov(periodFactRet);
+    predicted_ret = X * B;
+    
+    epsilon = predicted_ret - periodReturns;
+    omega = cov(epsilon);
+    D = diag(diag(omega));
+    
+    mu = (geo_mean(1+periodReturns)-1)'; %[u1;u2;u3; ...]
+    Q = cov(periodReturns);
+    
     %----------------------------------------------------------------------
     
     % Define the target return for the 2 MVO portfolios
@@ -159,8 +204,11 @@ for t = 1 : NoPeriods
     % 'MVO_card.m' and 'BL.m') to find your optimal portfolios
     
     x{1}(:,t) = funList{1}(mu, Q, targetRet); 
-    x{2}(:,t) = funList{2}(mu, Q, targetRet, card); 
-    x{3}(:,t) = funList{3}(Q, tau, P, q, Omega, mktNoShares, currentPrices); 
+    
+    %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CODE CHANGED %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+    %x{2}(:,t) = funList{2}(mu, Q, targetRet, card); 
+    %x{3}(:,t) = funList{3}(mu, Q, tau, P, q, Omega, mktNoShares, currentPrices); 
+    
     
     % Calculate the optimal number of shares of each stock you should hold
     for i = NoMethods
@@ -178,13 +226,14 @@ for t = 1 : NoPeriods
         % period. The first period does not have any cost since you are
         % constructing the portfolios for the 1st time. 
         
-        % if t ~= 1
+        if t ~= 1
            
-        %    tCost(t-1, i) = 
+           abs_diff = abs(NoSharesOld{i} - NoShares{i});
+           tCost(t-1, i) = abs_diff' * currentPrices * 0.005; % 0.5% of traded volume
             
-        % end
+        end
         
-        % NoSharesOld{i} = NoShares{i};
+        NoSharesOld{i} = NoShares{i};
         %------------------------------------------------------------------
         
     end
@@ -226,6 +275,7 @@ end
 %--------------------------------------------------------------------------
 % 4.1 Plot the portfolio values 
 %--------------------------------------------------------------------------
+testStart = datetime('2013-01-01');
 plotDates = dates(testStart <= dates);
 
 fig1 = figure(1);

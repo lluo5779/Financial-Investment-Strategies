@@ -14,7 +14,7 @@ function  x_optimal = MVO(mu, Q, targetRet)
     %---------------------------------------------------------------------
     
     A = [];
-    Aeq = [-1*mu;ones(1,n)];
+    Aeq = [-1*mu';ones(1,n)];
     
     b = [];
     beq = [-1*targetRet;1];

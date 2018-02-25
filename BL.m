@@ -1,4 +1,4 @@
-function  x_optimal = BL(Q, tau, P, q, Omega, mktNoShares, currentPrices)
+function  x_optimal = BL(mu, Q, tau, P, q, Omega, mktNoShares, currentPrices)
     
     % Use this function to construct your MVO portfolio subject to the
     % target return, with short-selling allowed. 
@@ -16,9 +16,15 @@ function  x_optimal = BL(Q, tau, P, q, Omega, mktNoShares, currentPrices)
     % *************** WRITE YOUR CODE HERE ***************
     %----------------------------------------------------------------------
     
+    % Variance of market excess returns
+    sigma_mkt = x_mkt' * Q * x_mkt
     
     
+    % Risk aversion Coefficient
+    lambda = mu' * % HOW DO I GET THE MARKET EXCESS RETURN???
     
+    % Implied market return
+    pi = lambda * Q * x_market  
     
     
     

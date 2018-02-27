@@ -183,7 +183,7 @@ for t = 1 : NoPeriods
     A = B(1,:)'; %[b0; b0; b0;...]
     V = B(2:size(B,1),:)'; %[b1 b2 b3; b1 b2 b3; ...]
     
-    f_bar = mean(periodFactRet)'; % [f_bar1; f_bar2; f_bar3]
+    f_bar = [1 (geomean(X(:,2:end)+1) - 1)]'; % [f_bar1; f_bar2; f_bar3]
     F = cov(periodFactRet);
     predicted_ret = X * B;
     
@@ -191,8 +191,8 @@ for t = 1 : NoPeriods
     omega = cov(epsilon);
     D = diag(diag(omega));
     
-    mu = (geomean(1+periodReturns)-1)'; %[u1;u2;u3; ...]
-    Q = cov(periodReturns);
+    mu = B'*f_bar; %[u1;u2;u3; ...]
+    Q = V*F*V' + omega;
     
     %----------------------------------------------------------------------
     

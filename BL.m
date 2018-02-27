@@ -1,4 +1,4 @@
-function  x_optimal = BL(mu, Q, tau, P, q, Omega, mktNoShares, currentPrices)
+function  x_optimal = BL(mu, Q, tau, P, q, Omega, mktNoShares, currentPrices, rf)
     
     % Use this function to construct your MVO portfolio subject to the
     % target return, with short-selling allowed. 

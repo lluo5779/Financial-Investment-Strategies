@@ -1,4 +1,4 @@
-function  x_optimal = MVO_card(mu, Q, targetRet, card)
+function  x_optimal = MVO_card(mu, Q, targetRet, card, tickers)
     
     % Use this function to construct your MVO portfolio subject to the
     % target return, with short-selling allowed. 
@@ -15,7 +15,7 @@ function  x_optimal = MVO_card(mu, Q, targetRet, card)
     
     clear model
 
-    names = num2str([1:1:n]);
+    names = tickers;
 
     model.Q = sparse([Q zeros(n,n); zeros(n,2*n)]);
     model.A = sparse([-1*mu', zeros(1,n); 
@@ -31,23 +31,23 @@ function  x_optimal = MVO_card(mu, Q, targetRet, card)
 
     model.vtype = [repmat('C', 1, n) repmat('B', 1, n);];
 
-    %gurobi_write(model, 'qp.lp'); % mip.lp
+    gurobi_write(model, 'qp.lp'); % mip.lp
 
     results = gurobi(model)
-
-    for v=1:length(names)
-        fprintf('%s %e\n', names{v}, results.x(v));
-    end
-
-    fprintf('Obj: %e\n', results.objval);
+% 
+%     for v=1:length(names)
+%         fprintf('%s %e\n', names{v}, results.x(v));
+%     end
+% 
+%     fprintf('Obj: %e\n', results.objval);
 
 
 
     results  = gurobi(model);
-
-    for v=1:length(names)
-        fprintf('%s %e\n', names{v}, results.x(v));
-    end
+% 
+%     for v=1:length(names)
+%         fprintf('%s %e\n', names{v}, results.x(v));
+%     end
 
     fprintf('Obj: %e\n', results.objval);
 
@@ -55,7 +55,7 @@ function  x_optimal = MVO_card(mu, Q, targetRet, card)
     
     
     
-    x_optimal = results.x;
+    x_optimal = results.x(1:(size(results.x,1)/2));
     
     %----------------------------------------------------------------------
     

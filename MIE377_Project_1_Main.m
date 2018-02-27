@@ -41,8 +41,8 @@ dates   = datetime(factorRet.Properties.RowNames);
 
 % Calculate the stocks' weekly EXCESS returns
 prices  = table2array(adjClose);
-returns = ( prices(2:end,:) - prices(1:end-1,:) ) ./ prices(1:end-1,:);
-returns = returns - ( diag( table2array(riskFree) ) * ones( size(returns) ) );
+returns_raw = ( prices(2:end,:) - prices(1:end-1,:) ) ./ prices(1:end-1,:);
+returns = returns_raw - ( diag( table2array(riskFree) ) * ones( size(returns_raw) ) );
 returns = array2table(returns);
 returns.Properties.VariableNames = tickers;
 returns.Properties.RowNames = cellstr(datetime(factorRet.Properties.RowNames));
@@ -116,8 +116,8 @@ tau = 0.005;
 toDay = 0;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CODE CHANGED %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-NoMethods = 1;
-currentVal = ones(NoPeriods, 20);
+NoMethods = 2;
+currentVal = ones(NoPeriods, NoMethods);
 
 for t = 1 : NoPeriods
     
@@ -141,7 +141,7 @@ for t = 1 : NoPeriods
         for i = 1 : NoMethods
             %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CODE CHANGED %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
             %currentVal(t,i) = currentPrices .* NoShares{i};
-            currentVal(t,:) = currentPrices .* NoShares{i};
+            currentVal(t,i) = currentPrices' * NoShares{i}; %<=CHANGED GOOD CHANGE(Y)
             
         end
     end
@@ -191,7 +191,7 @@ for t = 1 : NoPeriods
     omega = cov(epsilon);
     D = diag(diag(omega));
     
-    mu = (geo_mean(1+periodReturns)-1)'; %[u1;u2;u3; ...]
+    mu = (geomean(1+periodReturns)-1)'; %[u1;u2;u3; ...]
     Q = cov(periodReturns);
     
     %----------------------------------------------------------------------
@@ -204,14 +204,13 @@ for t = 1 : NoPeriods
     % 'MVO_card.m' and 'BL.m') to find your optimal portfolios
     
     x{1}(:,t) = funList{1}(mu, Q, targetRet); 
-    
+    x{2}(:,t) = funList{2}(mu, Q, targetRet, card, tickers); 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CODE CHANGED %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %x{2}(:,t) = funList{2}(mu, Q, targetRet, card); 
-    %x{3}(:,t) = funList{3}(mu, Q, tau, P, q, Omega, mktNoShares, currentPrices); 
+    %x{3}(:,t) = funList{3}(mu, Q, tau, P, q, Omega, mktNoShares, currentPrices, rf); 
     
     
     % Calculate the optimal number of shares of each stock you should hold
-    for i = NoMethods
+    for i = 1:NoMethods
         
         % Number of shares your portfolio holds per stock
         NoShares{i} = x{i}(:,t) .* currentVal(t,i) ./ currentPrices;
@@ -234,8 +233,16 @@ for t = 1 : NoPeriods
         end
         
         NoSharesOld{i} = NoShares{i};
+        
+        portfolio_var{i}(t,:) = x{i}(:,t)'*Q*x{i}(:,t);
+        
         %------------------------------------------------------------------
         
+      
+        
+%         portfolio_ret = x{i}(:,t)' * mu;
+%         variance_portfolio = 
+%         sharpRatio{t}(i,1) = portfolio_ret/1
     end
 
     % Update your calibration and out-of-sample test periods

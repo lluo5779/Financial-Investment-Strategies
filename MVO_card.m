@@ -29,7 +29,7 @@ function  x_optimal = MVO_card(mu, Q, targetRet, card, tickers)
     model.obj = [zeros(1,2*n)];
     model.rhs = [-1*targetRet; 1; card; zeros(2*n,1)];
     sense = [repmat('<', 1, size(model.A,1))];
-    sense(1,[2,3]) = '=';
+    sense(1,[1,2,3]) = '=';
     model.sense = sense;
 
     model.vtype = [repmat('C', 1, n) repmat('B', 1, n);];

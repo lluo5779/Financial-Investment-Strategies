@@ -1,4 +1,4 @@
-%% MIE377 (Winter 2018) - Project 1
+    %% MIE377 (Winter 2018) - Project 1
 % The purpose of this program is to test the out-of-sample performance of 
 % 3 different portfolio optimization models. We will test the following
 % models:
@@ -47,6 +47,7 @@ returns = array2table(returns);
 returns.Properties.VariableNames = tickers;
 returns.Properties.RowNames = cellstr(datetime(factorRet.Properties.RowNames));
 
+
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 %% 2. Define your initial parameters
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
@@ -91,15 +92,14 @@ NoShares{3} = mktNoShares;
 
 [NoTotalDates, NoAssets] = size(adjClose);
 % Insert your B-L parameters (have at least 6 different views):
-
-tau = 0.005;
-
-
-
-% tau   = 
-% P     = 
-% q     = 
-% Omega =
+% 
+% tau = 0.005;
+% P = ones(1,NoAssets)*1/NoAssets;
+% q = [geomean(1+geomean(1+periodReturns(NoTotalDates/2:end,NoAssets))-1)-1]
+for i = 1:NoMethods
+    avgPortfolioValue{i} = zeros(NoPeriods,1);
+    expectedPortfReturn{i} = zeros(NoPeriods,1);
+end
 
 %--------------------------------------------------------------------------
 
@@ -116,8 +116,36 @@ tau = 0.005;
 toDay = 0;
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CODE CHANGED %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-NoMethods = 2;
+NoMethods = 3;
 currentVal = ones(NoPeriods, NoMethods);
+
+NoAbsConstraints = 3;
+NoRelaConstraints = 5;
+
+% indicesSimilarCompanies{1} = [1,2]
+% indicesSimilarCompanies{2} = [4,5,6]
+% indicesSimilarCompanies{3} = [5,6]
+% indicesSimilarCompanies{4} = [8,9,10]
+% indicesSimilarCompanies{5} = [8,9]
+% indicesSimilarCompanies{6} = [9,10]
+% indicesSimilarCompanies{7} = [8,10]
+% indicesSimilarCompanies{8} = [11,12]
+% indicesSimilarCompanies{9} = [13,14]
+% indicesSimilarCompanies{10} = [15,16,17,20]
+% indicesSimilarCompanies{11} = [15,16,17]
+% indicesSimilarCompanies{12} = [15,16,20]
+% indicesSimilarCompanies{13} = [15,17, 20]
+% indicesSimilarCompanies{13} = [16,17, 20]
+% indicesSimilarCompanies{14} = [15,16]
+% indicesSimilarCompanies{15} = [15,17]
+% indicesSimilarCompanies{16} = [15, 20]
+% indicesSimilarCompanies{17} = [15,20]
+% indicesSimilarCompanies{18} = [16,17]
+% indicesSimilarCompanies{19} = [16,20]
+% indicesSimilarCompanies{20} = [17,20]
+% indicesSimilarCompanies{21} = [19,20]
+
+indicesSimilarCompanies = nchoosek(linspace(1,NoAssets, NoAssets),2);
 
 for t = 1 : NoPeriods
     
@@ -127,7 +155,16 @@ for t = 1 : NoPeriods
     periodFactRet = table2array( factorRet( calStart <= dates & dates <= calEnd, :) );
     currentPrices = table2array( adjClose( ( calEnd - days(7) ) <= dates ... 
                                                     & dates <= calEnd, :) )';
-    
+    currentReturns = table2array( returns( ( calEnd - days(7) ) <= dates ... 
+                                                    & dates <= calEnd, :));
+    startingReturns = table2array( returns( calStart <= dates ... 
+                                                    & dates <= (calStart +   days(7)), :));
+    avgPeriodRiskFree = table2array(riskFree(( calEnd - days(7) ) <= dates ... 
+                                                    & dates <= calEnd, :));
+    currentRiskFree = table2array( riskFree( ( calEnd - days(7) ) <= dates ... 
+                                                    & dates <= calEnd, :));
+    startingPrices = table2array( adjClose( calStart <= dates ... 
+                                                    & dates <= (calStart +   days(7)), :))';                                           
     % Subset the prices corresponding to the current out-of-sample test 
     % period.
     periodPrices = table2array( adjClose( testStart <= dates & dates <= testEnd,:) );
@@ -176,8 +213,6 @@ for t = 1 : NoPeriods
     % Q  =          % n x n asset covariance matrix
     
     
-    
-    %Coefficients of Regression
     X = [ones(size(periodFactRet,1),1) periodFactRet];
     B = (X'*X)\(X'*periodReturns); %inv(X'*X)*X'*periodReturns
     A = B(1,:)'; %[b0; b0; b0;...]
@@ -188,12 +223,50 @@ for t = 1 : NoPeriods
     predicted_ret = X * B;
     
     epsilon = predicted_ret - periodReturns;
-    omega = cov(epsilon);
-    D = diag(diag(omega));
+    om = cov(epsilon);
+    D = diag(diag(om));
     
     mu = B'*f_bar; %[u1;u2;u3; ...]
-    Q = V*F*V' + omega;
+    Q = V*F*V' + om;
+  
+%     var_mkt = var(table2array(factorRet(:,1)));
+%     lambda = mu_mkt/var_mkt;
+
+
+
+
+    %------------ Black Litterman Parameters -------------%
+      
+    tau = 0.001;
+    P = zeros(NoAbsConstraints + NoRelaConstraints, NoAssets);
+    q = zeros(NoAbsConstraints + NoRelaConstraints, 1);
+   
+    mu_mkt = geomean(table2array(factorRet(:,1))+1)-1;
     
+    [mu_sorted1, I1] = sort(mu, 'descend');
+    
+    for i = 1:NoAbsConstraints
+        P(i, I1(i,1)) = 1;
+        q(i,1) = 2*(mu_sorted1(i,1));
+    end
+    
+    for i = 1:size(indicesSimilarCompanies,1)
+        mu_1 = mu(indicesSimilarCompanies(i,1),1);
+        mu_2 = mu(indicesSimilarCompanies(i,2),1);
+        abs_diff_mu(i,:) = abs(mu_1 - mu_2);
+        diff_mu(i,:) = mu_1 - mu_2;
+    end
+    
+    [mu_sorted2, I2] = sort(diff_mu, 'descend');
+    
+    for i = 1:NoRelaConstraints
+        P(NoAbsConstraints+i, indicesSimilarCompanies(I2(i,:),1)) = 1;
+        P(NoAbsConstraints+i, indicesSimilarCompanies(I2(i,:),2)) = -1;
+        q(NoAbsConstraints+i,1) = diff_mu(I2(i,1),1)*2;
+    end
+    
+    Omega = diag(diag(tau*P*Q*P'));
+        
     %----------------------------------------------------------------------
     
     % Define the target return for the 2 MVO portfolios
@@ -206,7 +279,7 @@ for t = 1 : NoPeriods
     x{1}(:,t) = funList{1}(mu, Q, targetRet); 
     x{2}(:,t) = funList{2}(mu, Q, targetRet, card, tickers); 
     %%%%%%%%%%%%%%%%%%%%%%%%%%%%%% CODE CHANGED %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-    %x{3}(:,t) = funList{3}(mu, Q, tau, P, q, Omega, mktNoShares, currentPrices, rf); 
+    x{3}(:,t) = funList{3}(mu_mkt, Q, tau, P, q, Omega, mktNoShares, currentPrices); 
     
     
     % Calculate the optimal number of shares of each stock you should hold
@@ -234,15 +307,20 @@ for t = 1 : NoPeriods
         
         NoSharesOld{i} = NoShares{i};
         
+        % The average portfolio value is determined by finding the
+        % arithmetic mean of all the values of portfolio during the period
+        avgPortfolioValue{i}(t,1) = mean(portfValue(fromDay:toDay,i));
+        % Calculation of Sharpe Ratio - the difference between the expected 
+        % values of the market return and risk free rate in the week prior
+        % divided between the portfolio variance over that period of time.
+        expectedCurrentMarketReturn = currentReturns*x{i}(:,t); %geomean(1+currentReturns)-1;
+        mu_portfolio{i}(t,:) = mu'*x{i}(:,t);
         portfolio_var{i}(t,:) = x{i}(:,t)'*Q*x{i}(:,t);
+        %portfolio_var_sortino{i}(t,:) = x{i}(:,t)'*cov(min(predicted_ret,0))*x{i}(:,t);
+        sharpe_ratio{i}(t,:) = (mu_portfolio{i}(t,:))/sqrt(portfolio_var{i}(t,:));
+        %sortino_ratio{i}(t,:) = (mu_portfolio{i}(t,:))/sqrt(portfolio_var_sortino{i}(t,:));
         
-        %------------------------------------------------------------------
         
-      
-        
-%         portfolio_ret = x{i}(:,t)' * mu;
-%         variance_portfolio = 
-%         sharpRatio{t}(i,1) = portfolio_ret/1
     end
 
     % Update your calibration and out-of-sample test periods
@@ -251,18 +329,7 @@ for t = 1 : NoPeriods
     
     testStart = testStart + calmonths(6);
     testEnd   = testStart + calmonths(6) - days(1);
-    
-    % *************** WRITE YOUR CODE HERE ***************
-    %----------------------------------------------------------------------
 
-    % Update your B-L parameters if you want to:
-
-    % tau   = 
-    % P     = 
-    % q     = 
-    % Omega =
-
-    %----------------------------------------------------------------------
 
 end
 
@@ -278,6 +345,17 @@ end
 % report.
 
 %--------------------------------------------------------------------------
+% for i = 1:NoMethods
+%     avgPortfolioValue{i}
+%     sharpe_ratio{i}
+%     
+% end   
+        
+
+save('portfolioParameters.mat', 'avgPortfolioValue', 'sharpe_ratio', 'expectedCurrentMarketReturn', 'mu_portfolio','portfolio_var','-v7.3')
+% save('sharpe_ratio.mat', sharpe_ratio)
+% save('expectedCurrentMarketReturn.mat',expectedCurrentMarketReturn)
+% save('expectedmu.mat',expectedmu)
 
 %--------------------------------------------------------------------------
 % 4.1 Plot the portfolio values 
@@ -307,7 +385,7 @@ set(fig1,'PaperPositionMode','Auto','PaperUnits','Inches',...
 % print(fig1,'fileName','-dpdf','-r0');
 
 % If you want to save the figure as .png for use in MS Word
-print(fig1,'fileName','-dpng','-r0');
+print(fig1,'protfValue','-dpng','-r0');
 
 %--------------------------------------------------------------------------
 % 4.2 Plot the portfolio weights 
@@ -331,7 +409,7 @@ set(fig2,'PaperPositionMode','Auto','PaperUnits','Inches',...
 % print(fig2,'fileName2','-dpdf','-r0');
 
 % If you want to save the figure as .png for use in MS Word
-print(fig2,'fileName2','-dpng','-r0');
+print(fig2,'weights_mvo','-dpng','-r0');
 
 
 % MVO with Cardinality Constraints Plot
@@ -352,7 +430,7 @@ set(fig3,'PaperPositionMode','Auto','PaperUnits','Inches',...
 % print(fig3,'fileName3','-dpdf','-r0');
 
 % If you want to save the figure as .png for use in MS Word
-print(fig3,'fileName3','-dpng','-r0');
+print(fig3,'weights_card','-dpng','-r0');
 
 
 % B-L Model Plot
@@ -364,16 +442,81 @@ ylabel('Weights','interpreter','latex','FontSize',12);
 xlabel('Rebalance Period','interpreter','latex','FontSize',12);
 
 % Define the plot size in inches
-set(fig4,'Units','Inches', 'Position', [0 0 8, 5]);
+set(fig4,'Units','Inches', 'Position', [0 -5 8, 5]);
 pos1 = get(fig4,'Position');
 set(fig4,'PaperPositionMode','Auto','PaperUnits','Inches',...
     'PaperSize',[pos1(3), pos1(4)]);
 
 % If you want to save the figure as .pdf for use in LaTeX
-% print(fig4,'fileName3','-dpdf','-r0');
+%print(fig4,'fileName3','-dpdf','-r0');
 
 % If you want to save the figure as .png for use in MS Word
-print(fig4,'fileName3','-dpng','-r0');
+print(fig4,'weights_BL','-dpng','-r0');
+
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% MVO Plot
+fig5 = figure(5);
+plot(x{1}')
+legend(tickers, 'Location', 'eastoutside','FontSize',12);
+title('Portfolio Weights', 'FontSize', 14)
+ylabel('Weights','interpreter','latex','FontSize',12);
+xlabel('Rebalance Period','interpreter','latex','FontSize',12);
+
+% Define the plot size in inches
+set(fig5,'Units','Inches', 'Position', [0 0 8, 5]);
+pos1 = get(fig5,'Position');
+set(fig5,'PaperPositionMode','Auto','PaperUnits','Inches',...
+    'PaperSize',[pos1(3), pos1(4)]);
+
+% If you want to save the figure as .pdf for use in LaTeX
+% print(fig2,'fileName2','-dpdf','-r0');
+
+% If you want to save the figure as .png for use in MS Word
+print(fig5,'weights_mvo2','-dpng','-r0');
+
+
+% MVO with Cardinality Constraints Plot
+fig6 = figure(6);
+plot(x{2}')
+legend(tickers, 'Location', 'eastoutside','FontSize',12);
+title('Portfolio Weights', 'FontSize', 14)
+ylabel('Weights','interpreter','latex','FontSize',12);
+xlabel('Rebalance Period','interpreter','latex','FontSize',12);
+
+% Define the plot size in inches
+set(fig6,'Units','Inches', 'Position', [0 0 8, 5]);
+pos1 = get(fig6,'Position');
+set(fig6,'PaperPositionMode','Auto','PaperUnits','Inches',...
+    'PaperSize',[pos1(3), pos1(4)]);
+
+% If you want to save the figure as .pdf for use in LaTeX
+% print(fig3,'fileName3','-dpdf','-r0');
+
+% If you want to save the figure as .png for use in MS Word
+print(fig6,'weights_card2','-dpng','-r0');
+
+
+% B-L Model Plot
+fig7 = figure(7);
+plot(x{3}')
+legend(tickers, 'Location', 'eastoutside','FontSize',12);
+title('Portfolio Weights', 'FontSize', 14)
+ylabel('Weights','interpreter','latex','FontSize',12);
+xlabel('Rebalance Period','interpreter','latex','FontSize',12);
+
+% Define the plot size in inches
+set(fig7,'Units','Inches', 'Position', [0 -5 8, 5]);
+pos1 = get(fig7,'Position');
+set(fig7,'PaperPositionMode','Auto','PaperUnits','Inches',...
+    'PaperSize',[pos1(3), pos1(4)]);
+
+% If you want to save the figure as .pdf for use in LaTeX
+%print(fig4,'fileName3','-dpdf','-r0');
+
+% If you want to save the figure as .png for use in MS Word
+print(fig7,'weights_BL2','-dpng','-r0');
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Program End

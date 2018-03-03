@@ -1,4 +1,4 @@
-function  x_optimal = BL(mu, Q, tau, P, q, Omega, mktNoShares, currentPrices, rf)
+function  x_optimal = BL(mu_mkt, Q, tau, P, q, omega, mktNoShares, currentPrices)
     
     % Use this function to construct your MVO portfolio subject to the
     % target return, with short-selling allowed. 
@@ -13,18 +13,28 @@ function  x_optimal = BL(mu, Q, tau, P, q, Omega, mktNoShares, currentPrices, rf
     % Market portfolio
     x_mkt = mktNoShares .* currentPrices ./ sum( mktNoShares .* currentPrices );
     
-    % *************** WRITE YOUR CODE HERE ***************
-    %----------------------------------------------------------------------
-    
     % Variance of market excess returns
-    sigma_mkt = x_mkt' * Q * x_mkt
-    
-    
+    sigma_mkt = x_mkt' * Q * x_mkt;
+
     % Risk aversion Coefficient
-    lambda = mu' * % HOW DO I GET THE MARKET EXCESS RETURN???
+    lambda = mu_mkt/sigma_mkt; % HOW DO I GET THE MARKET EXCESS RETURN???
     
     % Implied market return
-    pi = lambda * Q * x_market  
+    Pi = lambda * Q * x_mkt;
+    
+    % mu incorporating our views
+    u_bar = inv(inv(tau*Q) + P'*inv(omega)*P) * ( inv(tau*Q)*Pi + P'*inv(omega)*q);
+
+    % initializing variables for quadprog           
+    f = -1*u_bar;    
+    A = [];
+    b = [];
+    Aeq = [ones(1,n)]; % Budget Constraint
+    beq = [1];
+    
+    [x_optimal, val] = quadprog(0.5*lambda*Q, f, A, b, Aeq, beq, [], [])
+
+
     
     
     
